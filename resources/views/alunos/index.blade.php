@@ -27,7 +27,7 @@
                                 <path
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
-                                    d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-.324-.015-.647-.044-.966M15 19.128a9.38 9.38 0 0 1-2.625-.372m5.25 0a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M9.75 19.128v-.003a9.38 9.38 0 0 1 2.625-.372m-5.25.375a9.38 9.38 0 0 1-2.625-.372 9.337 9.337 0 0 1-4.121-.952 4.125 4.125 0 0 1 7.533-2.493M9.75 19.128a9.38 9.38 0 0 0 2.625.372m0 0a9.38 9.38 0 0 0 2.625-.372M12 13.5a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Zm-6.75 0a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Zm13.5 0a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+                                    d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.125-.934M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.003a12.002 12.002 0 0 1-6.75 0M15 19.128a12.002 12.002 0 0 0-6.75 0m0 0v-.003c0-1.113.285-2.16.786-3.07M8.25 19.128a9.38 9.38 0 0 1-2.625.372 9.337 9.337 0 0 1-4.125-.934M8.25 19.128v.003a12.002 12.002 0 0 0 6.75 0M8.25 19.128a12.002 12.002 0 0 1-6.75 0m0 0v-.003c0-1.113.285-2.16.786-3.07M5.625 5.25a3.375 3.375 0 1 1 6.75 0 3.375 3.375 0 0 1-6.75 0Zm12.75 3.375a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"
                                 />
                             </svg>
 
@@ -48,7 +48,7 @@
                     </div>
 
                     <p class="mt-4 max-w-2xl text-sm font-medium leading-6 text-gray-600">
-                        Gerencie os alunos e acompanhe os períodos de estágio.
+                        Gerencie os alunos em estágio e acompanhe a situação de cada período.
                     </p>
 
                 </div>
@@ -119,20 +119,266 @@
 
 
             {{-- =====================================================
-                CONTEÚDO
+                CURSOS E NÚCLEOS
+            ====================================================== --}}
+
+            @php
+
+                $cursosFiltro = $alunos
+                    ->pluck('curso')
+                    ->filter()
+                    ->unique('id')
+                    ->sortBy('nome');
+
+                $nucleosFiltro = $alunos
+                    ->pluck('curso.nucleo')
+                    ->filter()
+                    ->unique('id')
+                    ->sortBy('nome');
+
+            @endphp
+
+
+            {{-- =====================================================
+                PESQUISA + FILTROS + TABELA
             ====================================================== --}}
 
             <div
                 x-data="{
+
                     busca: '',
+                    curso: '',
+                    nucleo: '',
                     status: '',
 
+                    alunos: @js(
+
+                        $alunos->map(function ($aluno) {
+
+                            return [
+
+                                'id' => $aluno->id,
+
+                                'nome' => strtolower(
+                                    $aluno->nome ?? ''
+                                ),
+
+                                'ra' => strtolower(
+                                    $aluno->ra ?? ''
+                                ),
+
+                                'curso' => (string) (
+                                    $aluno->curso->id ?? ''
+                                ),
+
+                                'nucleo' => (string) (
+                                    $aluno->curso->nucleo->id ?? ''
+                                ),
+
+                                'status' => $aluno->status,
+
+                            ];
+
+                        })->values()
+
+                    ),
+
+                    cursosDisponiveis: @js(
+
+                        $cursosFiltro->map(function ($curso) {
+
+                            return [
+
+                                'id' => (string) $curso->id,
+
+                                'nome' => $curso->nome,
+
+                                'nucleo' => (string) (
+                                    $curso->nucleo_id ?? ''
+                                ),
+
+                            ];
+
+                        })->values()
+
+                    ),
+
                     limparFiltros() {
+
                         this.busca = '';
+                        this.curso = '';
+                        this.nucleo = '';
                         this.status = '';
+
+                    },
+
+                    cursosFiltrados() {
+
+                        return this.cursosDisponiveis.filter(
+
+                            curso => {
+
+                                return (
+                                    this.nucleo === '' ||
+                                    curso.nucleo === this.nucleo
+                                );
+
+                            }
+
+                        );
+
+                    },
+
+                    alterarNucleo() {
+
+                        if (
+
+                            this.curso !== '' &&
+
+                            !this.cursosFiltrados().some(
+                                curso => curso.id === this.curso
+                            )
+
+                        ) {
+
+                            this.curso = '';
+
+                        }
+
+                    },
+
+                    alunoPassaFiltro(aluno) {
+
+                        const busca = this.busca
+                            .toLowerCase()
+                            .trim();
+
+                        const passaBusca =
+                            busca === '' ||
+                            aluno.nome.includes(busca) ||
+                            aluno.ra.includes(busca);
+
+                        const passaCurso =
+                            this.curso === '' ||
+                            aluno.curso === this.curso;
+
+                        const passaNucleo =
+                            this.nucleo === '' ||
+                            aluno.nucleo === this.nucleo;
+
+                        const passaStatus =
+                            this.status === '' ||
+                            aluno.status === this.status;
+
+                        return (
+                            passaBusca &&
+                            passaCurso &&
+                            passaNucleo &&
+                            passaStatus
+                        );
+
+                    },
+
+                    alunosFiltrados() {
+
+                        return this.alunos.filter(
+                            aluno => this.alunoPassaFiltro(aluno)
+                        );
+
+                    },
+
+                    totalFiltrado() {
+
+                        return this.alunosFiltrados().length;
+
+                    },
+
+                    quantidadePorStatus(status) {
+
+                        return this.alunosFiltrados()
+                            .filter(
+                                aluno => aluno.status === status
+                            )
+                            .length;
+
                     }
+
                 }"
             >
+
+                {{-- =================================================
+                    INDICADORES
+                ================================================== --}}
+
+                <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+                    {{-- TOTAL --}}
+
+                    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+
+                        <p class="text-sm font-bold text-gray-700">
+                            Total de alunos
+                        </p>
+
+                        <p
+                            class="mt-2 text-4xl font-extrabold text-gray-950"
+                            x-text="totalFiltrado()"
+                        >
+                            {{ $totalAlunos }}
+                        </p>
+
+                        <p class="mt-1 text-xs font-semibold text-gray-500">
+                            Alunos encontrados
+                        </p>
+
+                    </div>
+
+
+                    {{-- VIGENTES --}}
+
+                    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+
+                        <p class="text-sm font-bold text-gray-700">
+                            Alunos vigentes
+                        </p>
+
+                        <p
+                            class="mt-2 text-4xl font-extrabold text-green-600"
+                            x-text="quantidadePorStatus('vigente')"
+                        >
+                            {{ $alunosVigentes }}
+                        </p>
+
+                        <p class="mt-1 text-xs font-semibold text-gray-500">
+                            Em período de estágio
+                        </p>
+
+                    </div>
+
+
+                    {{-- ENCERRADOS --}}
+
+                    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+
+                        <p class="text-sm font-bold text-gray-700">
+                            Alunos encerrados
+                        </p>
+
+                        <p
+                            class="mt-2 text-4xl font-extrabold text-red-600"
+                            x-text="quantidadePorStatus('encerrado')"
+                        >
+                            {{ $alunosEncerrados }}
+                        </p>
+
+                        <p class="mt-1 text-xs font-semibold text-gray-500">
+                            Estágio encerrado
+                        </p>
+
+                    </div>
+
+                </div>
+
 
                 {{-- =================================================
                     PESQUISA E FILTROS
@@ -166,7 +412,7 @@
                         </div>
 
                         <p class="mt-1.5 text-sm font-medium text-gray-600">
-                            Pesquise por nome ou RA e filtre os alunos pelo status.
+                            Pesquise por nome ou RA e filtre os alunos por curso, núcleo e status.
                         </p>
 
                     </div>
@@ -174,7 +420,8 @@
 
                     {{-- CAMPOS --}}
 
-                    <div class="grid gap-4 md:grid-cols-[1fr_240px_auto]">
+                    <div class="grid gap-4 md:grid-cols-[1fr_200px_200px_220px_auto]">
+
 
                         {{-- PESQUISA --}}
 
@@ -212,8 +459,9 @@
                                 x-model="busca"
                                 autocomplete="off"
                                 placeholder="Digite o nome ou RA do aluno..."
-                                class="w-full rounded-xl border-gray-300 py-3 pl-11 pr-11 text-sm font-medium text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-orange-500 focus:ring-orange-500"
+                                class="w-full rounded-xl border-gray-300 py-3 pl-11 pr-11 text-sm font-medium text-gray-900 placeholder:text-gray-400 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                             >
+
 
                             {{-- LIMPAR PESQUISA --}}
 
@@ -242,6 +490,79 @@
                                 </svg>
 
                             </button>
+
+                        </div>
+
+
+                        {{-- FILTRO DE NÚCLEO --}}
+
+                        <div>
+
+                            <label
+                                for="nucleo"
+                                class="sr-only"
+                            >
+                                Núcleo
+                            </label>
+
+                            <select
+                                id="nucleo"
+                                x-model="nucleo"
+                                @change="alterarNucleo()"
+                                class="w-full rounded-xl border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                            >
+
+                                <option value="">
+                                    Todos os núcleos
+                                </option>
+
+                                @foreach ($nucleosFiltro as $nucleoFiltro)
+
+                                    <option value="{{ $nucleoFiltro->id }}">
+                                        {{ $nucleoFiltro->nome }}
+                                    </option>
+
+                                @endforeach
+
+                            </select>
+
+                        </div>
+
+
+                        {{-- FILTRO DE CURSO --}}
+
+                        <div>
+
+                            <label
+                                for="curso"
+                                class="sr-only"
+                            >
+                                Curso
+                            </label>
+
+                            <select
+                                id="curso"
+                                x-model="curso"
+                                class="w-full rounded-xl border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                            >
+
+                                <option value="">
+                                    Todos os cursos
+                                </option>
+
+                                <template
+                                    x-for="cursoFiltro in cursosFiltrados()"
+                                    :key="cursoFiltro.id"
+                                >
+
+                                    <option
+                                        :value="cursoFiltro.id"
+                                        x-text="cursoFiltro.nome"
+                                    ></option>
+
+                                </template>
+
+                            </select>
 
                         </div>
 
@@ -288,7 +609,12 @@
 
                         <button
                             type="button"
-                            x-show="busca !== '' || status !== ''"
+                            x-show="
+                                busca !== '' ||
+                                curso !== '' ||
+                                nucleo !== '' ||
+                                status !== ''
+                            "
                             x-cloak
                             @click="limparFiltros()"
                             class="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
@@ -331,7 +657,7 @@
                         </h2>
 
                         <p class="mt-1 text-sm font-medium text-gray-600">
-                            Alunos cadastrados e seus respectivos períodos de estágio.
+                            Acompanhe os alunos e seus respectivos períodos de estágio.
                         </p>
 
                     </div>
@@ -362,18 +688,18 @@
                                     </th>
 
                                     <th class="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-gray-600">
-                                        Data inicial
+                                        Início
                                     </th>
 
                                     <th class="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-gray-600">
-                                        Data final
+                                        Fim
                                     </th>
 
                                     <th class="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-gray-600">
                                         Status
                                     </th>
 
-                                    <th class="px-6 py-4 text-right text-xs font-extrabold uppercase tracking-wider text-gray-600">
+                                    <th class="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-gray-600">
                                         Ações
                                     </th>
 
@@ -386,96 +712,228 @@
 
                                 @forelse ($alunos as $aluno)
 
+                                    @php
+
+                                        $statusClasses = [
+
+                                            'vigente' =>
+                                                'bg-green-100 text-green-800',
+
+                                            'aguardando' =>
+                                                'bg-yellow-100 text-yellow-800',
+
+                                            'encerrado' =>
+                                                'bg-red-100 text-red-800',
+
+                                        ];
+
+                                        $statusLabels = [
+
+                                            'vigente' =>
+                                                'Vigente',
+
+                                            'aguardando' =>
+                                                'Aguardando',
+
+                                            'encerrado' =>
+                                                'Encerrado',
+
+                                        ];
+
+                                    @endphp
+
+
                                     <tr
                                         data-aluno
                                         x-show="
-                                            (
-                                                busca.trim() === '' ||
-                                                @js(strtolower($aluno->nome)).includes(busca.toLowerCase().trim()) ||
-                                                @js(strtolower($aluno->ra)).includes(busca.toLowerCase().trim())
-                                            )
-                                            &&
-                                            (
-                                                status === '' ||
-                                                status === @js($aluno->status)
+                                            alunoPassaFiltro(
+                                                alunos.find(
+                                                    aluno =>
+                                                        aluno.id === {{ $aluno->id }}
+                                                )
                                             )
                                         "
                                         x-cloak
-                                        class="transition hover:bg-gray-50"
+                                        class="transition hover:bg-gray-50
+                                            @if ($aluno->status === 'encerrado')
+                                                bg-red-50
+                                            @elseif ($aluno->status === 'aguardando')
+                                                bg-yellow-50
+                                            @endif
+                                        "
                                     >
+
+
+                                        {{-- ALUNO --}}
 
                                         <td class="whitespace-nowrap px-6 py-4">
 
                                             <div class="flex items-center gap-3">
 
                                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-sm font-extrabold text-orange-700">
+
                                                     {{ strtoupper(substr($aluno->nome, 0, 1)) }}
+
                                                 </div>
 
-                                                <span class="text-sm font-bold text-gray-900">
-                                                    {{ $aluno->nome }}
-                                                </span>
+                                                <div>
+
+                                                    <div class="text-sm font-bold text-gray-900">
+                                                        {{ $aluno->nome }}
+                                                    </div>
+
+                                                </div>
 
                                             </div>
 
                                         </td>
 
 
+                                        {{-- RA --}}
+
                                         <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">
+
                                             {{ $aluno->ra }}
+
                                         </td>
 
 
+                                        {{-- CURSO --}}
+
                                         <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">
+
                                             {{ $aluno->curso->nome }}
+
                                         </td>
 
 
+                                        {{-- NÚCLEO --}}
+
                                         <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">
+
                                             {{ $aluno->curso->nucleo->nome }}
+
                                         </td>
 
+
+                                        {{-- INÍCIO --}}
 
                                         <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">
-                                            {{ $aluno->data_inicial->format('d/m/Y') }}
+
+                                            {{ $aluno->data_inicial?->format('d/m/Y') }}
+
                                         </td>
 
 
-                                        <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-700">
-                                            {{ $aluno->data_final->format('d/m/Y') }}
-                                        </td>
-
+                                        {{-- FIM --}}
 
                                         <td class="whitespace-nowrap px-6 py-4">
 
-                                            @if ($aluno->status === 'vigente')
+                                            <div class="text-sm font-semibold text-gray-700">
 
-                                                <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-extrabold text-green-700">
-                                                    Vigente
-                                                </span>
+                                                {{ $aluno->data_final?->format('d/m/Y') }}
 
-                                            @elseif ($aluno->status === 'aguardando')
+                                            </div>
 
-                                                <span class="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-extrabold text-orange-700">
-                                                    Aguardando
-                                                </span>
+                                            @if (
+                                                $aluno->status === 'aguardando'
+                                                && $aluno->data_inicial
+                                            )
 
-                                            @elseif ($aluno->status === 'encerrado')
+                                                @php
 
-                                                <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-extrabold text-gray-700">
-                                                    Encerrado
-                                                </span>
+                                                    $dias = now()
+                                                        ->startOfDay()
+                                                        ->diffInDays(
+                                                            $aluno->data_inicial,
+                                                            false
+                                                        );
+
+                                                @endphp
+
+                                                <div class="mt-1 text-xs font-extrabold text-yellow-600">
+
+                                                    Inicia em
+                                                    {{ $dias }}
+                                                    {{ $dias === 1 ? 'dia' : 'dias' }}
+
+                                                </div>
+
+                                            @elseif (
+                                                $aluno->status === 'vigente'
+                                                && $aluno->data_final
+                                            )
+
+                                                @php
+
+                                                    $dias = now()
+                                                        ->startOfDay()
+                                                        ->diffInDays(
+                                                            $aluno->data_final,
+                                                            false
+                                                        );
+
+                                                @endphp
+
+                                                <div class="mt-1 text-xs font-extrabold text-green-600">
+
+                                                    {{ $dias }}
+                                                    {{ $dias === 1 ? 'dia' : 'dias' }}
+                                                    restantes
+
+                                                </div>
+
+                                            @elseif (
+                                                $aluno->status === 'encerrado'
+                                                && $aluno->data_final
+                                            )
+
+                                                @php
+
+                                                    $dias = now()
+                                                        ->startOfDay()
+                                                        ->diffInDays(
+                                                            $aluno->data_final,
+                                                            false
+                                                        );
+
+                                                @endphp
+
+                                                <div class="mt-1 text-xs font-extrabold text-red-600">
+
+                                                    {{ abs($dias) }}
+                                                    {{ abs($dias) === 1 ? 'dia' : 'dias' }}
+                                                    encerrado
+
+                                                </div>
 
                                             @endif
 
                                         </td>
 
 
-                                        <td class="whitespace-nowrap px-6 py-4 text-right">
+                                        {{-- STATUS --}}
+
+                                        <td class="whitespace-nowrap px-6 py-4">
+
+                                            <span
+                                                class="inline-flex rounded-full px-3 py-1 text-xs font-extrabold {{ $statusClasses[$aluno->status] ?? 'bg-gray-100 text-gray-800' }}"
+                                            >
+
+                                                {{ $statusLabels[$aluno->status] ?? $aluno->status }}
+
+                                            </span>
+
+                                        </td>
+
+
+                                        {{-- AÇÕES --}}
+
+                                        <td class="whitespace-nowrap px-6 py-4">
 
                                             <a
                                                 href="{{ route('alunos.edit', $aluno) }}"
-                                                class="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                                                class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3.5 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
                                             >
 
                                                 <svg
@@ -489,7 +947,12 @@
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
-                                                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.5 16.154 7 17l.846-3.5L16.862 4.487ZM19.5 13.5V19.125A1.875 1.875 0 0 1 17.625 21H4.875A1.875 1.875 0 0 1 3 19.125V6.375A1.875 1.875 0 0 1 4.875 4.5H10.5"
+                                                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 15.97a4.5 4.5 0 0 1-1.897 1.13L6 18l.9-2.685a4.5 4.5 0 0 1 1.13-1.897l8.832-8.931Z"
+                                                    />
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M19.5 7.125 16.875 4.5"
                                                     />
                                                 </svg>
 
@@ -523,7 +986,7 @@
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
-                                                        d="M12 13.5a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Zm-6.75 0a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Zm13.5 0a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+                                                        d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.125-.934M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.003a12.002 12.002 0 0 1-6.75 0M15 19.128a12.002 12.002 0 0 0-6.75 0m0 0v-.003c0-1.113.285-2.16.786-3.07M8.25 19.128a9.38 9.38 0 0 1-2.625.372 9.337 9.337 0 0 1-4.125-.934M8.25 19.128v.003a12.002 12.002 0 0 0 6.75 0M8.25 19.128a12.002 12.002 0 0 1-6.75 0m0 0v-.003c0-1.113.285-2.16.786-3.07M5.625 5.25a3.375 3.375 0 1 1 6.75 0Zm12.75 3.375a2.625 2.625 0 1 1-5.25 0Z"
                                                     />
                                                 </svg>
 
@@ -533,6 +996,13 @@
                                                 Nenhum aluno cadastrado.
                                             </p>
 
+                                            <a
+                                                href="{{ route('alunos.create') }}"
+                                                class="mt-3 inline-flex text-sm font-extrabold text-orange-600 transition hover:text-orange-700"
+                                            >
+                                                Cadastrar primeiro aluno
+                                            </a>
+
                                         </td>
 
                                     </tr>
@@ -540,18 +1010,12 @@
                                 @endforelse
 
 
-                                {{-- =================================================
-                                    NENHUM RESULTADO NOS FILTROS
-                                ================================================== --}}
+                                {{-- NENHUM RESULTADO NOS FILTROS --}}
 
                                 @if ($alunos->count() > 0)
 
                                     <tr
-                                        x-show="
-                                            !Array.from(
-                                                $el.parentElement.querySelectorAll('tr[data-aluno]')
-                                            ).some(row => row.offsetParent !== null)
-                                        "
+                                        x-show="totalFiltrado() === 0"
                                         x-cloak
                                     >
 
@@ -580,9 +1044,7 @@
                                             </div>
 
                                             <p class="mt-4 text-sm font-semibold text-gray-700">
-
                                                 Nenhum aluno encontrado com os filtros selecionados.
-
                                             </p>
 
                                             <button

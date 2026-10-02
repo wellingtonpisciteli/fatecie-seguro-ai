@@ -35,9 +35,28 @@ class AlunoController extends Controller
             ->orderBy('nome')
             ->get();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Resumo dos alunos
+        |--------------------------------------------------------------------------
+        */
+
+        $totalAlunos = (clone $alunos)->count();
+
+        $alunosVigentes = (clone $alunos)
+            ->where('status', 'vigente')
+            ->count();
+
+        $alunosEncerrados = (clone $alunos)
+            ->where('status', 'encerrado')
+            ->count();
+
         return view('alunos.index', compact(
             'alunos',
-            'busca'
+            'busca',
+            'totalAlunos',
+            'alunosVigentes',
+            'alunosEncerrados'
         ));
     }
 

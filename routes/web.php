@@ -7,6 +7,7 @@ use App\Http\Controllers\AlunoController;
 use App\Http\Controllers\SeguroController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AiController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -23,6 +24,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/presencial', [DashboardController::class, 'index'])
         ->middleware('modalidade:presencial')
         ->name('dashboard.presencial');
+
+    // Assistente IA
+    Route::post('/assistente/perguntar', [AiController::class, 'perguntar'])
+        ->name('assistente.perguntar');
 
     // Perfil
     Route::get('/profile', [ProfileController::class, 'edit'])
